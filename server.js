@@ -311,6 +311,17 @@ app.get('/api/cities', (req, res) => {
   res.json({ cities: rows.map(r => r.city) });
 });
 
+app.get('/', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'index.html'));
+});
+
+app.use((req, res) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/uploads/')) {
+    return res.sendFile(path.join(ROOT, 'public', 'index.html'));
+  }
+  res.status(404).json({ error: 'Not found' });
+});
+
 app.listen(PORT, () => {
   console.log(`Market API running on http://localhost:${PORT}`);
   if (!BOT_TOKEN) console.log('WARNING: BOT_TOKEN not set — running in DEBUG mode (no real Telegram auth).');
