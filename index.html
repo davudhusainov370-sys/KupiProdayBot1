@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>КупиПродай — площадка объявлений</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg-elev: #141414;
+    --bg-card: #1a1a1a;
+    --border: #262626;
+    --text: #f2f2f2;
+    --text-dim: #8a8a8a;
+    --text-mute: #5a5a5a;
+    --blue: #2f7bff;
+    --blue-dim: #1f5ad6;
+    --blue-soft: rgba(47, 123, 255, 0.12);
+    --danger: #ff4d4d;
+    --radius: 14px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+  body { display: flex; justify-content: center; }
+  #app { width: 100%; max-width: 480px; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; }
+  header { padding: calc(var(--safe-t) + 10px) 16px 10px; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+  .top-row { display: flex; align-items: center; gap: 10px; }
+  .search { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; color: var(--text-dim); font-size: 15px; }
+  .search input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 15px; }
+  .search input::placeholder { color: var(--text-mute); }
+  .icon-btn { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .icon-btn:active { background: #222; }
+  .badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; background: var(--blue); color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
+  .city-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--text-dim); cursor: pointer; }
+  .city-row b { color: var(--text); font-weight: 600; }
+  .city-row svg { opacity: .7; }
+  main { flex: 1; overflow-y: auto; padding: 16px 16px calc(84px + var(--safe-b)); -webkit-overflow-scrolling: touch; }
+  .section-title { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 12px; font-size: 17px; font-weight: 600; }
+  .section-title .more { font-size: 13px; color: var(--blue); font-weight: 500; cursor: pointer; }
+  .categories { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 26px; }
+  .cat { display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; }
+  .cat .ico { width: 56px; height: 56px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--blue); transition: .15s; }
+  .cat:active .ico { background: var(--blue-soft); border-color: var(--blue-dim); }
+  .cat span { font-size: 11.5px; color: var(--text-dim); text-align: center; }
+  .ads { display: flex; flex-direction: column; gap: 14px; }
+  .ad { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: .15s; }
+  .ad:active { border-color: var(--blue-dim); }
+  .ad-img { width: 100%; aspect-ratio: 16 / 10; background: linear-gradient(135deg, #1d1d1d, #2a2a2a); position: relative; display: flex; align-items: center; justify-content: center; color: #3a3a3a; }
+  .fav { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; background: rgba(10,10,10,.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; border: none; }
+  .fav.active { color: var(--blue); }
+  .ad-body { padding: 12px 13px 13px; }
+  .ad-price { font-size: 18px; font-weight: 700; margin-bottom: 5px; }
+  .ad-title { font-size: 14px; color: var(--text); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+  .ad-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-mute); }
+  .ad-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-mute); }
+  .ad-seller { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .ad-seller .ava { width: 24px; height: 24px; border-radius: 50%; background: var(--blue-dim); color: #fff; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+  .ad-seller .name { font-size: 12.5px; color: var(--text-dim); flex: 1; }
+  .ad-seller .contact { font-size: 12px; color: var(--blue); font-weight: 500; }
+  nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: rgba(15,15,15,.92); backdrop-filter: blur(14px); border-top: 1px solid var(--border); display: flex; padding: 8px 6px calc(8px + var(--safe-b)); z-index: 30; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-mute); cursor: pointer; position: relative; padding: 4px 0; }
+  .tab svg { stroke: var(--text-mute); }
+  .tab.active { color: var(--blue); }
+  .tab.active svg { stroke: var(--blue); }
+  .tab .plus { width: 44px; height: 44px; margin-top: -14px; border-radius: 14px; background: var(--blue); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(47,123,255,.35); }
+  .tab .plus svg { stroke: #fff; }
+  .sheet-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; opacity: 0; pointer-events: none; transition: .25s; }
+  .sheet-mask.show { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 100%); width: 100%; max-width: 480px; background: var(--bg-elev); border-top-left-radius: 20px; border-top-right-radius: 20px; border: 1px solid var(--border); border-bottom: none; padding: 8px 18px calc(24px + var(--safe-b)); transition: transform .28s cubic-bezier(.2,.9,.3,1); max-height: 88vh; overflow-y: auto; }
+  .sheet-mask.show .sheet { transform: translate(-50%, 0); }
+  .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 18px; }
+  .sheet h2 { font-size: 19px; margin-bottom: 4px; }
+  .sheet .sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 7px; }
+  .field input, .field textarea, .field select { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; color: var(--text); font-size: 15px; outline: none; font-family: inherit; }
+  .field input:focus, .field textarea:focus { border-color: var(--blue-dim); }
+  .field textarea { resize: none; height: 90px; }
+  .btn { width: 100%; background: var(--blue); color: #fff; border: none; border-radius: 12px; padding: 15px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+  .btn:active { background: var(--blue-dim); }
+  .btn.ghost { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); }
+  .city-list { display: flex; flex-direction: column; gap: 4px; }
+  .city-opt { padding: 14px 12px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+  .city-opt:active { border-color: var(--blue-dim); }
+  .city-opt.sel { border-color: var(--blue); color: var(--blue); }
+  .city-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .city-head h2 { margin: 0; font-size: 18px; }
+  .back-mini { width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .city-search { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; color: var(--text); font-size: 15px; outline: none; margin-bottom: 14px; }
+  .city-search::placeholder { color: var(--text-mute); }
+  .detail-img { width: 100%; aspect-ratio: 1/1; background: linear-gradient(135deg, #1d1d1d, #2a2a2a); display: flex; align-items: center; justify-content: center; color: #3a3a3a; position: relative; }
+  .back { position: absolute; top: calc(var(--safe-t) + 12px); left: 12px; width: 40px; height: 40px; border-radius: 50%; background: rgba(10,10,10,.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; color: #fff; border: none; cursor: pointer; }
+  .detail-body { padding: 18px 16px; }
+  .detail-price { font-size: 26px; font-weight: 700; margin-bottom: 10px; }
+  .detail-title { font-size: 18px; line-height: 1.35; margin-bottom: 14px; }
+  .detail-meta { display: flex; gap: 10px; font-size: 13px; color: var(--text-dim); margin-bottom: 18px; flex-wrap: wrap; }
+  .chip { background: var(--bg-card); border: 1px solid var(--border); padding: 6px 12px; border-radius: 20px; }
+  .detail-desc { font-size: 14.5px; line-height: 1.6; color: var(--text); margin-bottom: 22px; white-space: pre-wrap; }
+  .seller-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 20px; }
+  .seller-card .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .seller-card .ava { width: 46px; height: 46px; border-radius: 50%; background: var(--blue-dim); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .seller-card .nm { font-size: 15px; font-weight: 600; }
+  .seller-card .rt { font-size: 12.5px; color: var(--text-mute); }
+  .contact-btns { display: flex; gap: 10px; }
+  .contact-btns .btn { margin: 0; }
+  .contact-btns .btn.tg { background: var(--bg-card); border: 1px solid var(--blue-dim); color: var(--blue); }
+  .contact-btns .btn.ph { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue-dim); }
+  .empty { text-align: center; color: var(--text-mute); padding: 60px 20px; font-size: 14px; }
+  .empty svg { margin-bottom: 14px; opacity: .5; }
+  .loading { text-align: center; color: var(--text-mute); padding: 40px 20px; font-size: 14px; }
+  .ad-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .gallery { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; background: #111; }
+  .gallery img { height: 100%; width: 100%; object-fit: cover; flex-shrink: 0; scroll-snap-align: start; }
+  .img-pick { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .img-thumb { position: relative; width: 72px; height: 72px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-card); }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .img-thumb .rm { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; border: none; font-size: 14px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .img-add { width: 72px; height: 72px; border-radius: 12px; border: 1px dashed var(--border); background: var(--bg-card); color: var(--text-mute); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 26px; }
+  .img-add input { display: none; }
+  .hidden { display: none !important; }
+  .toast { position: fixed; top: calc(var(--safe-t) + 14px); left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); padding: 12px 18px; border-radius: 12px; font-size: 14px; z-index: 100; transition: .3s; box-shadow: 0 8px 30px rgba(0,0,0,.5); max-width: 90%; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div class="top-row">
+      <div class="search" onclick="goTab('search')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" placeholder="Поиск товаров..." oninput="onSearch(this.value)" />
+      </div>
+      <button class="icon-btn" onclick="openChats()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z"/></svg>
+        <span class="badge" id="chatBadge" style="display:none">0</span>
+      </button>
+      <button class="icon-btn" onclick="openNotifs()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="badge" id="notifBadge" style="display:none">0</span>
+      </button>
+    </div>
+    <div class="city-row" onclick="openCity()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>Город: <b id="cityLabel">—</b></span>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="view-home">
+      <div class="section-title">Категории</div>
+      <div class="categories" id="catGrid"></div>
+      <div class="section-title"><span>Рекомендуем в <span id="cityInTitle">…</span></span><span class="more" onclick="goTab('search')">Все</span></div>
+      <div class="ads" id="adListHome"></div>
+    </section>
+
+    <section id="view-search" class="hidden">
+      <div class="section-title">Поиск</div>
+      <div class="categories" id="catGridSearch"></div>
+      <div class="section-title" style="margin-top:10px">Найдено</div>
+      <div class="ads" id="adListSearch"></div>
+    </section>
+
+    <section id="view-place" class="hidden">
+      <div style="padding:24px 16px">
+        <div class="section-title">Разместить объявление</div>
+        <div class="field">
+          <label>Фотографии</label>
+          <div class="img-pick" id="imgPick"></div>
+          <label class="img-add">+<input id="f-images" type="file" accept="image/*" multiple onchange="onPickImages(this)" /></label>
+        </div>
+        <div class="field"><label>Заголовок</label><input id="f-title" placeholder="Например: iPhone 13, как новый" /></div>
+        <div class="field"><label>Категория</label><select id="f-cat"></select></div>
+        <div class="field"><label>Цена, ₽</label><input id="f-price" type="number" placeholder="0" /></div>
+        <div class="field"><label>Описание</label><textarea id="f-desc" placeholder="Опишите товар, состояние, причину продажи..."></textarea></div>
+        <div class="field"><label>Город</label><input id="f-city" readonly /></div>
+        <div class="field"><label>Связь: @username Telegram</label><input id="f-tg" placeholder="@username" /></div>
+        <div class="field"><label>Связь: телефон (необязательно)</label><input id="f-phone" placeholder="+7..." /></div>
+        <button class="btn" id="publishBtn" onclick="publishAd()">Опубликовать</button>
+        <button class="btn ghost hidden" id="cancelEditBtn" onclick="cancelEdit()" style="margin-top:10px">Отмена</button>
+      </div>
+    </section>
+
+    <section id="view-fav" class="hidden">
+      <div class="section-title">Избранное</div>
+      <div class="ads" id="adListFav"></div>
+    </section>
+
+    <section id="view-profile" class="hidden">
+      <div style="padding:10px 4px 4px">
+        <div class="seller-card">
+          <div class="top">
+            <div class="ava" id="profAva">У</div>
+            <div><div class="nm" id="profName">Пользователь</div><div class="rt" id="profTg">@user</div></div>
+          </div>
+          <div style="display:flex; gap:10px; font-size:13px; color:var(--text-dim)">
+            <span>Объявлений: <b style="color:var(--text)" id="profAds">0</b></span>
+            <span>В избранном: <b style="color:var(--text)" id="profFav">0</b></span>
+          </div>
+        </div>
+        <button class="btn ghost" style="margin-bottom:10px" onclick="myAds()">Мои объявления</button>
+        <button class="btn ghost" style="margin-bottom:10px" onclick="openCity()">Сменить город</button>
+        <button class="btn ghost hidden" id="adminBtn" style="margin-bottom:10px;color:var(--blue);border-color:var(--blue-dim)" onclick="openAdmin()">Админ-панель</button>
+        <button class="btn ghost" onclick="showAbout()">О приложении</button>
+      </div>
+    </section>
+  </main>
+
+  <nav id="nav">
+    <div class="tab active" data-tab="home" onclick="goTab('home')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>Главная
+    </div>
+    <div class="tab" data-tab="search" onclick="goTab('search')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Поиск
+    </div>
+    <div class="tab" data-tab="place" onclick="goTab('place')">
+      <div class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></div>
+    </div>
+    <div class="tab" data-tab="fav" onclick="goTab('fav')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 21s-7-4.5-9.5-9A5 5 0 0 1 12 6a5 5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z"/></svg>Избранное
+    </div>
+    <div class="tab" data-tab="profile" onclick="goTab('profile')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Профиль
+    </div>
+  </nav>
+
+  <div class="sheet-mask" id="citySheet" onclick="if(event.target===this)closeSheet('citySheet')">
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="city-head">
+        <button class="back-mini hidden" id="cityBack" onclick="cityBack()">‹</button>
+        <h2 id="cityTitle">Выберите регион</h2>
+      </div>
+      <input id="citySearch" class="city-search" placeholder="Поиск по России…" oninput="cityFilter(this.value)" />
+      <div class="city-list" id="cityOptions"></div>
+    </div>
+  </div>
+
+  <div class="sheet-mask" id="detailSheet" onclick="if(event.target===this)closeSheet('detailSheet')">
+    <div class="sheet" style="padding:0">
+      <div class="detail-img" id="dImg">
+        <button class="back" onclick="closeSheet('detailSheet')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="gallery" id="dGallery"></div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-price" id="dPrice"></div>
+        <div class="detail-title" id="dTitle"></div>
+        <div class="detail-meta" id="dMeta"></div>
+        <div class="detail-desc" id="dDesc"></div>
+        <div class="seller-card">
+          <div class="top"><div class="ava" id="dAva"></div><div><div class="nm" id="dSeller"></div><div class="rt">Продавец на площадке</div></div></div>
+          <div class="contact-btns">
+            <button class="btn tg" id="dTg" onclick="contactTg()">Написать в Telegram</button>
+            <button class="btn ph" id="dPhone" onclick="contactPhone()">Позвонить</button>
+          </div>
+          <button class="btn ghost" style="margin-top:12px" onclick="shareAd()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+            Поделиться объявлением
+          </button>
+          <div id="ownerActions" class="hidden" style="display:flex;gap:10px;margin-top:12px">
+            <button class="btn ghost" style="flex:1" onclick="editAd()">Редактировать</button>
+            <button class="btn ghost" style="flex:1;color:#ff5a5a;border-color:#5a2222" onclick="deleteAd()">Удалить</button>
+          </div>
+          <button id="statusBtn" class="btn ghost hidden" style="margin-top:10px" onclick="toggleStatus()"></button>
+          <button id="reportBtn" class="btn ghost hidden" style="margin-top:10px;color:var(--text-dim)" onclick="openReport()">Пожаловаться</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-mask" id="chatSheet" onclick="if(event.target===this)closeSheet('chatSheet')">
+    <div class="sheet"><div class="grab"></div><h2>Чаты</h2><p class="sub">Диалоги с продавцами и покупателями</p><div id="chatList"></div></div>
+  </div>
+  <div class="sheet-mask" id="notifSheet" onclick="if(event.target===this)closeSheet('notifSheet')">
+    <div class="sheet"><div class="grab"></div><h2>Уведомления</h2><p class="sub">Ответы, новые объявления в вашем городе</p><div id="notifList"></div></div>
+  </div>
+
+  <div class="sheet-mask" id="reportSheet" onclick="if(event.target===this)closeSheet('reportSheet')">
+    <div class="sheet">
+      <div class="grab"></div>
+      <h2>Пожаловаться</h2>
+      <p class="sub">Выберите причину — мы проверим объявление</p>
+      <div class="city-list" id="reportOptions"></div>
+    </div>
+  </div>
+
+  <div class="sheet-mask" id="adminSheet" onclick="if(event.target===this)closeSheet('adminSheet')">
+    <div class="sheet">
+      <div class="grab"></div>
+      <h2>Админ-панель</h2>
+      <p class="sub">Жалобы пользователей</p>
+      <div class="ads" id="adminList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ===== Telegram ===== */
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) { tg.expand(); tg.ready(); }
+
+/* ===== Config ===== */
+const API = '';
+const CATEGORIES = [
+  { id:'tech', name:'Техника', icon:'M4 4h16v12H4zM2 20h20M9 8h6' },
+  { id:'auto', name:'Авто', icon:'M5 13l1.5-5h11L19 13M7 17v2M17 17v2M3 13h18v4H3z' },
+  { id:'home', name:'Дом', icon:'M3 11 12 4l9 7M5 10v10h14V10' },
+  { id:'cloth', name:'Одежда', icon:'M8 3l4 3 4-3 4 3-2 4-2-1v11H8V9L6 10z' },
+  { id:'sport', name:'Спорт', icon:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18' },
+  { id:'job', name:'Работа', icon:'M4 8h16v11H4zM9 8V5h6v3M4 8V5h4v3M16 8V5h4v3' },
+  { id:'kids', name:'Детям', icon:'M12 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5 21v-5a7 7 0 0 1 14 0v5' },
+  { id:'other', name:'Другое', icon:'M12 3v18M3 12h18' },
+];
+const REGIONS = [
+  { name: 'Москва', cities: ['Москва'] },
+  { name: 'Санкт-Петербург', cities: ['Санкт-Петербург'] },
+  { name: 'Севастополь', cities: ['Севастополь'] },
+  { name: 'Республика Адыгея', cities: ['Майкоп', 'Адыгейск'] },
+  { name: 'Республика Алтай', cities: ['Горно-Алтайск'] },
+  { name: 'Республика Башкортостан', cities: ['Уфа', 'Стерлитамак', 'Салават', 'Нефтекамск', 'Октябрьский'] },
+  { name: 'Республика Бурятия', cities: ['Улан-Удэ', 'Северобайкальск'] },
+  { name: 'Республика Дагестан', cities: ['Махачкала', 'Дербент', 'Каспийск', 'Буйнакск', 'Хасавюрт'] },
+  { name: 'Республика Ингушетия', cities: ['Магас', 'Назрань', 'Карабулак'] },
+  { name: 'Кабардино-Балкарская Республика', cities: ['Нальчик', 'Прохладный', 'Баксан'] },
+  { name: 'Республика Калмыкия', cities: ['Элиста'] },
+  { name: 'Карачаево-Черкесская Республика', cities: ['Черкесск', 'Карачаевск', 'Усть-Джегута'] },
+  { name: 'Республика Карелия', cities: ['Петрозаводск', 'Кондопога', 'Сегежа', 'Сортавала'] },
+  { name: 'Республика Коми', cities: ['Сыктывкар', 'Воркута', 'Ухта', 'Печора', 'Инта'] },
+  { name: 'Республика Марий Эл', cities: ['Йошкар-Ола', 'Волжск', 'Козьмодемьянск'] },
+  { name: 'Республика Мордовия', cities: ['Саранск', 'Рузаевка'] },
+  { name: 'Республика Саха (Якутия)', cities: ['Якутск', 'Нерюнгри', 'Мирный', 'Ленск'] },
+  { name: 'Республика Северная Осетия — Алания', cities: ['Владикавказ', 'Моздок', 'Беслан'] },
+  { name: 'Республика Татарстан', cities: ['Казань', 'Набережные Челны', 'Нижнекамск', 'Альметьевск', 'Елабуга', 'Зеленодольск'] },
+  { name: 'Республика Тыва', cities: ['Кызыл'] },
+  { name: 'Удмуртская Республика', cities: ['Ижевск', 'Сарапул', 'Глазов', 'Воткинск'] },
+  { name: 'Республика Хакасия', cities: ['Абакан', 'Саяногорск', 'Черногорск', 'Абаза'] },
+  { name: 'Чеченская Республика', cities: ['Грозный', 'Аргун', 'Гудермес', 'Урус-Мартан'] },
+  { name: 'Чувашская Республика', cities: ['Чебоксары', 'Новочебоксарск', 'Канаш', 'Алатырь'] },
+  { name: 'Алтайский край', cities: ['Барнаул', 'Бийск', 'Рубцовск', 'Новоалтайск', 'Заринск'] },
+  { name: 'Забайкальский край', cities: ['Чита', 'Краснокаменск'] },
+  { name: 'Камчатский край', cities: ['Петропавловск-Камчатский', 'Елизово'] },
+  { name: 'Краснодарский край', cities: ['Краснодар', 'Сочи', 'Новороссийск', 'Армавир', 'Кропоткин', 'Ейск', 'Туапсе', 'Анапа'] },
+  { name: 'Красноярский край', cities: ['Красноярск', 'Норильск', 'Ачинск', 'Железногорск', 'Минусинск', 'Зеленогорск'] },
+  { name: 'Пермский край', cities: ['Пермь', 'Березники', 'Соликамск', 'Чайковский'] },
+  { name: 'Приморский край', cities: ['Владивосток', 'Находка', 'Уссурийск', 'Артём', 'Находка'] },
+  { name: 'Ставропольский край', cities: ['Ставрополь', 'Пятигорск', 'Кисловодск', 'Невинномысск', 'Ессентуки', 'Минеральные Воды'] },
+  { name: 'Хабаровский край', cities: ['Хабаровск', 'Комсомольск-на-Амуре', 'Амурск'] },
+  { name: 'Амурская область', cities: ['Благовещенск', 'Белогорск', 'Свободный', 'Тында'] },
+  { name: 'Архангельская область', cities: ['Архангельск', 'Северодвинск', 'Котлас', 'Новодвинск', 'Коряжма'] },
+  { name: 'Астраханская область', cities: ['Астрахань', 'Ахтубинск'] },
+  { name: 'Белгородская область', cities: ['Белгород', 'Старый Оскол', 'Губкин', 'Алексеевка'] },
+  { name: 'Брянская область', cities: ['Брянск', 'Клинцы', 'Новозыбков'] },
+  { name: 'Владимирская область', cities: ['Владимир', 'Муром', 'Ковров', 'Александров'] },
+  { name: 'Волгоградская область', cities: ['Волгоград', 'Волжский', 'Камышин', 'Михайловка'] },
+  { name: 'Вологодская область', cities: ['Вологда', 'Череповец', 'Сокол', 'Шексна'] },
+  { name: 'Воронежская область', cities: ['Воронеж', 'Борисоглебск', 'Россошь', 'Лиски'] },
+  { name: 'Ивановская область', cities: ['Иваново', 'Кинешма', 'Шуя'] },
+  { name: 'Иркутская область', cities: ['Иркутск', 'Братск', 'Ангарск', 'Усолье-Сибирское', 'Усть-Илимск'] },
+  { name: 'Калининградская область', cities: ['Калининград', 'Советск', 'Черняховск', 'Гусев'] },
+  { name: 'Калужская область', cities: ['Калуга', 'Обнинск', 'Людиново', 'Киров'] },
+  { name: 'Кемеровская область', cities: ['Кемерово', 'Новокузнецк', 'Прокопьевск', 'Ленинск-Кузнецкий', 'Междуреченск', 'Киселёвск'] },
+  { name: 'Кировская область', cities: ['Киров', 'Кирово-Чепецк', 'Слободской'] },
+  { name: 'Костромская область', cities: ['Кострома', 'Шарья'] },
+  { name: 'Курская область', cities: ['Курск', 'Железногорск', 'Курчатов'] },
+  { name: 'Ленинградская область', cities: ['Гатчина', 'Выборг', 'Волхов', 'Кингисепп', 'Сосновый Бор', 'Тихвин'] },
+  { name: 'Липецкая область', cities: ['Липецк', 'Елец', 'Мичуринск'] },
+  { name: 'Магаданская область', cities: ['Магадан', 'Сусуман'] },
+  { name: 'Московская область', cities: ['Балашиха', 'Химки', 'Подольск', 'Королёв', 'Мытищи', 'Люберцы', 'Коломна', 'Одинцово', 'Серпухов', 'Электросталь', 'Красногорск', 'Домодедово', 'Орехово-Зуево', 'Щёлково', 'Сергиев Посад', 'Жуковский', 'Пушкино', 'Раменское', 'Ногинск'] },
+  { name: 'Мурманская область', cities: ['Мурманск', 'Апатиты', 'Североморск', 'Мончегорск', 'Кандалакша'] },
+  { name: 'Нижегородская область', cities: ['Нижний Новгород', 'Дзержинск', 'Арзамас', 'Саров', 'Балахна', 'Кстово'] },
+  { name: 'Новгородская область', cities: ['Великий Новгород', 'Старая Русса', 'Боровичи'] },
+  { name: 'Новосибирская область', cities: ['Новосибирск', 'Бердск', 'Искитим', 'Куйбышев'] },
+  { name: 'Омская область', cities: ['Омск', 'Тара', 'Исилькуль'] },
+  { name: 'Оренбургская область', cities: ['Оренбург', 'Орск', 'Новотроицк', 'Бузулук', 'Бугуруслан'] },
+  { name: 'Орловская область', cities: ['Орёл', 'Мценск', 'Ливны'] },
+  { name: 'Пензенская область', cities: ['Пенза', 'Кузнецк', 'Заречный', 'Каменка'] },
+  { name: 'Псковская область', cities: ['Псков', 'Великие Луки', 'Остров'] },
+  { name: 'Ростовская область', cities: ['Ростов-на-Дону', 'Таганрог', 'Шахты', 'Волгодонск', 'Новочеркасск', 'Азов', 'Батайск', 'Новошахтинск'] },
+  { name: 'Рязанская область', cities: ['Рязань', 'Касимов', 'Скопин'] },
+  { name: 'Самарская область', cities: ['Самара', 'Тольятти', 'Сызрань', 'Новокуйбышевск', 'Жигулёвск'] },
+  { name: 'Саратовская область', cities: ['Саратов', 'Энгельс', 'Балаково', 'Балашов'] },
+  { name: 'Сахалинская область', cities: ['Южно-Сахалинск', 'Корсаков', 'Долинск', 'Холмск'] },
+  { name: 'Свердловская область', cities: ['Екатеринбург', 'Нижний Тагил', 'Каменск-Уральский', 'Первоуральск', 'Серов', 'Новоуральск'] },
+  { name: 'Смоленская область', cities: ['Смоленск', 'Вязьма', 'Рославль'] },
+  { name: 'Тамбовская область', cities: ['Тамбов', 'Мичуринск', 'Рассказово'] },
+  { name: 'Тверская область', cities: ['Тверь', 'Ржев', 'Вышний Волочёк', 'Торжок'] },
+  { name: 'Томская область', cities: ['Томск', 'Северск', 'Стрежевой'] },
+  { name: 'Тульская область', cities: ['Тула', 'Новомосковск', 'Алексин', 'Ефремов'] },
+  { name: 'Тюменская область', cities: ['Тюмень', 'Тобольск', 'Ишим', 'Заводоуковск'] },
+  { name: 'Ульяновская область', cities: ['Ульяновск', 'Димитровград', 'Инза'] },
+  { name: 'Челябинская область', cities: ['Челябинск', 'Магнитогорск', 'Златоуст', 'Миасс', 'Копейск', 'Троицк'] },
+  { name: 'Ярославская область', cities: ['Ярославль', 'Рыбинск', 'Переславль-Залесский', 'Углич'] },
+  { name: 'Еврейская автономная область', cities: ['Биробиджан', 'Облучье'] },
+  { name: 'Ненецкий автономный округ', cities: ['Нарьян-Мар'] },
+  { name: 'Ханты-Мансийский автономный округ — Югра', cities: ['Ханты-Мансийск', 'Сургут', 'Нижневартовск', 'Нефтеюганск', 'Нягань'] },
+  { name: 'Чукотский автономный округ', cities: ['Анадырь', 'Певек'] },
+  { name: 'Ямало-Ненецкий автономный округ', cities: ['Салехард', 'Новый Уренгой', 'Ноябрьск', 'Надым', 'Губкинский'] },
+];
+
+/* ===== State ===== */
+let state = {
+  city: localStorage.getItem('m_city') || '',
+  ads: [],
+  me: null,
+  current: null,
+  loading: false,
+  newImages: [],
+};
+
+/* ===== API helper ===== */
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (tg && tg.initData) headers['X-Init-Data'] = tg.initData;
+  const res = await fetch(API + path, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка сервера');
+  return data;
+}
+
+const $ = s => document.querySelector(s);
+const catName = id => (CATEGORIES.find(c => c.id === id) || {}).name || 'Другое';
+const catIcon = p => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${p}"/></svg>`;
+const priceFmt = p => Number(p).toLocaleString('ru-RU') + ' ₽';
+
+function renderCategories(elId) {
+  document.getElementById(elId).innerHTML = CATEGORIES.map(c => `
+    <div class="cat" onclick="filterCat('${c.id}')">
+      <div class="ico">${catIcon(c.icon)}</div><span>${c.name}</span>
+    </div>`).join('');
+}
+
+function adHTML(a) {
+  return `
+  <div class="ad" onclick="openAd(${a.id})">
+    <div class="ad-img">
+      ${a.images && a.images.length ? `<img class="ad-cover" src="${a.images[0]}" alt="" />` : `<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>`}
+      <button class="fav ${a.fav ? 'active' : ''}" onclick="event.stopPropagation();toggleFav(${a.id})">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="${a.fav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.5-9.5-9A5 5 0 0 1 12 6a5 5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z"/></svg>
+      </button>
+    </div>
+    <div class="ad-body">
+      <div class="ad-price">${priceFmt(a.price)}</div>
+      <div class="ad-title">${escapeHtml(a.title)}</div>
+      <div class="ad-meta"><span>${escapeHtml(a.city)}</span><span class="dot"></span><span>${catName(a.category)}</span>${a.status === 'sold' ? '<span class="dot"></span><span style="color:var(--blue)">Продано</span>' : ''}</div>
+      <div class="ad-seller">
+        <div class="ava">${(a.seller || '?')[0]}</div>
+        <div class="name">${escapeHtml(a.seller || 'Пользователь')}</div>
+        <div class="contact">${a.tg ? 'Telegram' : 'Телефон'}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function emptyHTML(t = 'Ничего не найдено') {
+  return `<div class="empty"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><div>${t}</div></div>`;
+}
+function loadingHTML(){ return `<div class="loading">Загрузка…</div>`; }
+
+/* ===== Data loading ===== */
+async function loadAds() {
+  if (!state.city) return;
+  try {
+    const p = new URLSearchParams({ city: state.city });
+    const { ads } = await api('/api/ads?' + p.toString());
+    state.ads = ads;
+    renderHome();
+    if (document.getElementById('view-search').classList.contains('hidden') === false) renderSearch($('#searchInput').value);
+  } catch (e) { toast(e.message); }
+}
+
+async function loadMe() {
+  try { state.me = await api('/api/me'); renderProfile(); } catch (e) { /* ignore */ }
+}
+
+/* ===== Render ===== */
+function renderHome() {
+  $('#cityLabel').textContent = state.city || '—';
+  $('#cityInTitle').textContent = state.city || '…';
+  const local = state.ads;
+  $('#adListHome').innerHTML = local.length ? local.map(adHTML).join('') : emptyHTML('В вашем городе пока нет объявлений');
+}
+function renderSearch(q = '') {
+  const list = state.ads.filter(a =>
+    !q || a.title.toLowerCase().includes(q.toLowerCase()) || catName(a.category).toLowerCase().includes(q.toLowerCase())
+  );
+  $('#adListSearch').innerHTML = list.length ? list.map(adHTML).join('') : emptyHTML('Ничего не найдено');
+}
+function renderFav() {
+  const list = (state.me ? state.me.favAds : []);
+  $('#adListFav').innerHTML = list.length ? list.map(adHTML).join('') : emptyHTML('Нет избранных объявлений');
+}
+function renderProfile() {
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  const me = state.me;
+  $('#profName').textContent = (u && u.first_name) || (me && me.user && me.user.first_name) || 'Пользователь';
+  $('#profTg').textContent = (u && u.username) ? '@' + u.username : (me && me.user && me.user.username ? '@' + me.user.username : '@user');
+  $('#profAva').textContent = ($('#profName').textContent || 'У')[0];
+  $('#profAds').textContent = me ? me.myAds.length : 0;
+  $('#profFav').textContent = me ? me.favCount : 0;
+  $('#adminBtn').classList.toggle('hidden', !(me && me.isAdmin));
+}
+
+/* ===== Actions ===== */
+function goTab(tab) {
+  document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+  document.getElementById('view-' + tab).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  if (tab === 'home') renderHome();
+  if (tab === 'search') renderSearch();
+  if (tab === 'fav') renderFav();
+  if (tab === 'profile') { renderProfile(); if (!state.me) loadMe(); }
+  if (tab === 'place') { openPlace(); }
+  $('#main').scrollTop = 0;
+}
+function filterCat(id) {
+  goTab('search');
+  $('#searchInput').value = catName(id);
+  renderSearch(catName(id));
+}
+function onSearch(v) { renderSearch(v); }
+
+async function toggleFav(id) {
+  const a = state.ads.find(x => x.id === id);
+  try {
+    const { fav } = await api('/api/fav', { method: 'POST', body: { adId: id } });
+    if (a) a.fav = fav;
+    if (state.me) { await loadMe(); }
+    renderHome(); renderSearch($('#searchInput').value); renderFav();
+    toast(fav ? 'Добавлено в избранное' : 'Убрано из избранного');
+  } catch (e) { toast(e.message); }
+}
+
+async function openAd(id) {
+  try {
+    const { ad } = await api('/api/ads/' + id);
+    state.current = ad;
+    $('#dPrice').textContent = priceFmt(ad.price);
+    $('#dTitle').textContent = ad.title;
+    $('#dMeta').innerHTML = `<span class="chip">${escapeHtml(ad.city)}</span><span class="chip">${catName(ad.category)}</span>`;
+    $('#dDesc').textContent = ad.description || 'Описание не указано';
+    const gal = $('#dGallery');
+    gal.innerHTML = (ad.images && ad.images.length)
+      ? ad.images.map(s => `<img src="${s}" alt="" />`).join('')
+      : `<div style="margin:auto;color:#3a3a3a"><svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>`;
+    $('#dAva').textContent = (ad.seller || '?')[0];
+    $('#dSeller').textContent = ad.seller || 'Пользователь';
+    $('#dTg').style.display = ad.tg ? 'block' : 'none';
+    $('#dPhone').style.display = ad.phone ? 'block' : 'none';
+    if (!ad.tg && !ad.phone) $('#dTg').style.display = 'block';
+    $('#ownerActions').classList.toggle('hidden', !ad.isMine);
+    $('#statusBtn').classList.toggle('hidden', !ad.isMine);
+    $('#reportBtn').classList.toggle('hidden', ad.isMine);
+    updateStatusBtn();
+    openSheet('detailSheet');
+  } catch (e) { toast(e.message); }
+}
+function contactTg() {
+  const a = state.current; if (!a || !a.tg) return;
+  const uname = a.tg.replace('@', '');
+  if (tg && tg.openTelegramLink) tg.openTelegramLink('https://t.me/' + uname);
+  else window.open('https://t.me/' + uname, '_blank');
+  toast('Открываем чат с продавцом…');
+}
+function contactPhone() {
+  const a = state.current; if (!a || !a.phone) return;
+  if (tg && tg.openLink) tg.openLink('tel:' + a.phone.replace(/\s/g, ''));
+  else window.location.href = 'tel:' + a.phone.replace(/\s/g, '');
+}
+function shareAd() {
+  const a = state.current; if (!a) return;
+  const link = location.origin + location.pathname + '?ad=' + a.id;
+  const text = `${a.title}\n${priceFmt(a.price)} · ${a.city}\n${link}`;
+  if (tg && tg.switchInlineQuery) {
+    try { tg.switchInlineQuery(text, ['users', 'groups', 'channels']); return; } catch (e) {}
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast('Ссылка скопирована')).catch(() => toast(link));
+  } else {
+    toast(link);
+  }
+}
+
+function fillCatSelect() {
+  $('#f-cat').innerHTML = CATEGORIES.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+function openPlace() {
+  if (state.editing) {
+    const a = state.editing;
+    fillCatSelect();
+    $('#f-title').value = a.title;
+    $('#f-cat').value = a.category;
+    $('#f-price').value = a.price;
+    $('#f-desc').value = a.description || '';
+    $('#f-city').value = a.city;
+    $('#f-tg').value = a.tg || '';
+    $('#f-phone').value = a.phone || '';
+    state.newImages = a.images ? a.images.slice() : [];
+    renderImgPick();
+    $('#publishBtn').textContent = 'Сохранить изменения';
+    $('#cancelEditBtn').classList.remove('hidden');
+  } else {
+    $('#f-title').value = ''; $('#f-price').value = ''; $('#f-desc').value = '';
+    $('#f-tg').value = ''; $('#f-phone').value = '';
+    fillCatSelect();
+    $('#f-city').value = state.city;
+    state.newImages = []; renderImgPick();
+    $('#publishBtn').textContent = 'Опубликовать';
+    $('#cancelEditBtn').classList.add('hidden');
+  }
+}
+function confirmDialog(msg, cb) {
+  if (tg && tg.showConfirm) tg.showConfirm(msg, cb);
+  else cb(confirm(msg));
+}
+function renderImgPick() {
+  const el = $('#imgPick');
+  el.innerHTML = state.newImages.map((src, i) => `
+    <div class="img-thumb">
+      <img src="${src}" alt="" />
+      <button class="rm" onclick="removeImg(${i})">×</button>
+    </div>`).join('');
+}
+function onPickImages(input) {
+  const files = Array.from(input.files || []);
+  files.forEach(f => {
+    if (state.newImages.length >= 8) return;
+    const r = new FileReader();
+    r.onload = () => { state.newImages.push(r.result); renderImgPick(); };
+    r.readAsDataURL(f);
+  });
+  input.value = '';
+}
+function removeImg(i) {
+  state.newImages.splice(i, 1);
+  renderImgPick();
+}
+async function publishAd() {
+  const title = $('#f-title').value.trim();
+  const price = parseInt($('#f-price').value) || 0;
+  const desc = $('#f-desc').value.trim();
+  const cat = $('#f-cat').value;
+  const tgU = $('#f-tg').value.trim();
+  const ph = $('#f-phone').value.trim();
+  const city = $('#f-city').value || state.city;
+  if (!title || !price) { toast('Заполните заголовок и цену'); return; }
+  if (!city) { toast('Сначала выберите город'); openCity(); return; }
+  const body = { title, category: cat, price, description: desc, city, tg: tgU, phone: ph, images: state.newImages };
+  try {
+    if (state.editing) {
+      await api('/api/ads/' + state.editing.id, { method: 'PUT', body });
+      toast('Объявление обновлено!');
+      state.editing = null;
+    } else {
+      await api('/api/ads', { method: 'POST', body });
+      toast('Объявление опубликовано!');
+    }
+    $('#f-title').value = ''; $('#f-price').value = ''; $('#f-desc').value = ''; $('#f-tg').value = ''; $('#f-phone').value = '';
+    state.newImages = []; renderImgPick();
+    $('#publishBtn').textContent = 'Опубликовать';
+    $('#cancelEditBtn').classList.add('hidden');
+    await loadMe(); await loadAds();
+    goTab('home');
+  } catch (e) { toast(e.message); }
+}
+function editAd() {
+  if (!state.current) return;
+  state.editing = state.current;
+  closeSheet('detailSheet');
+  goTab('place');
+}
+function deleteAd() {
+  if (!state.current) return;
+  confirmDialog('Удалить это объявление безвозвратно?', async (ok) => {
+    if (!ok) return;
+    try {
+      await api('/api/ads/' + state.current.id, { method: 'DELETE' });
+      toast('Объявление удалено');
+      state.editing = null;
+      closeSheet('detailSheet');
+      await loadMe(); await loadAds();
+      goTab('home');
+    } catch (e) { toast(e.message); }
+  });
+}
+function cancelEdit() {
+  state.editing = null;
+  $('#publishBtn').textContent = 'Опубликовать';
+  $('#cancelEditBtn').classList.add('hidden');
+  $('#f-title').value = ''; $('#f-price').value = ''; $('#f-desc').value = ''; $('#f-tg').value = ''; $('#f-phone').value = '';
+  state.newImages = []; renderImgPick();
+  goTab('home');
+}
+function updateStatusBtn() {
+  const a = state.current; if (!a) return;
+  $('#statusBtn').textContent = a.status === 'sold' ? 'Сделать активным' : 'Отметить как продано';
+}
+async function toggleStatus() {
+  const a = state.current; if (!a) return;
+  const st = a.status === 'sold' ? 'active' : 'sold';
+  try {
+    const r = await api('/api/ads/' + a.id + '/status', { method: 'POST', body: { status: st } });
+    a.status = r.status;
+    updateStatusBtn();
+    toast(r.status === 'sold' ? 'Отмечено как продано' : 'Объявление активно');
+    state.ads = state.ads.map(x => x.id === a.id ? { ...x, status: r.status } : x);
+    renderHome();
+    if (document.getElementById('view-search').classList.contains('hidden') === false) renderSearch($('#searchInput').value);
+    renderFav();
+  } catch (e) { toast(e.message); }
+}
+const REPORT_REASONS = ['Спам', 'Не та категория', 'Запрещённый товар', 'Обман / мошенничество', 'Другое'];
+function openReport() {
+  const a = state.current; if (!a) return;
+  $('#reportOptions').innerHTML = REPORT_REASONS.map(r => `<div class="city-opt" onclick="submitReport('${escapeHtml(r)}')"><span>${r}</span></div>`).join('');
+  openSheet('reportSheet');
+}
+async function submitReport(reason) {
+  const a = state.current; if (!a) return;
+  try {
+    await api('/api/report', { method: 'POST', body: { adId: a.id, reason } });
+    closeSheet('reportSheet');
+    toast('Жалоба отправлена. Спасибо!');
+  } catch (e) { toast(e.message); }
+}
+async function openAdmin() {
+  try {
+    const { reports } = await api('/api/admin/reports');
+    const el = $('#adminList');
+    if (!reports.length) {
+      el.innerHTML = emptyHTML('Жалоб нет');
+    } else {
+      el.innerHTML = reports.map(r => `
+        <div class="ad">
+          <div class="ad-body">
+            <div class="ad-title">${escapeHtml(r.title)}</div>
+            <div class="ad-meta"><span>${escapeHtml(r.city)}</span><span class="dot"></span><span>Причина: ${escapeHtml(r.reason)}</span></div>
+            <div class="contact-btns" style="margin-top:10px">
+              <button class="btn tg" onclick="adminAction(${r.ad_id},'hide')">Скрыть</button>
+              <button class="btn ph" onclick="adminAction(${r.ad_id},'delete')" style="color:#ff5a5a">Удалить</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+    openSheet('adminSheet');
+  } catch (e) { toast(e.message); }
+}
+async function adminAction(id, action) {
+  try {
+    await api('/api/admin/ads/' + id, { method: 'POST', body: { action } });
+    toast(action === 'delete' ? 'Объявление удалено' : 'Объявление скрыто');
+    await openAdmin();
+    await loadAds();
+  } catch (e) { toast(e.message); }
+}
+async function myAds() {
+  if (!state.me) await loadMe();
+  const list = state.me.myAds;
+  $('#adListHome').innerHTML = list.length ? list.map(adHTML).join('') : emptyHTML('Вы ещё не размещали объявления');
+  $('#cityInTitle').textContent = 'ваши';
+  goTab('home');
+}
+function showAbout() { toast('КупиПродай — площадка объявлений v1.0'); }
+
+/* ===== City ===== */
+/* ===== City picker (region -> cities) ===== */
+let cityLevel = 'region';
+let curRegion = null;
+
+function openCity() {
+  cityLevel = 'region';
+  curRegion = null;
+  $('#cityBack').classList.add('hidden');
+  $('#cityTitle').textContent = 'Выберите регион';
+  $('#citySearch').value = '';
+  renderRegions('');
+  openSheet('citySheet');
+}
+function renderRegions(filter) {
+  const f = (filter || '').trim().toLowerCase();
+  const list = REGIONS.filter(r => !f || r.name.toLowerCase().includes(f) || r.cities.some(c => c.toLowerCase().includes(f)));
+  $('#cityOptions').innerHTML = (list.length ? list : []).map(r => `
+    <div class="city-opt" onclick="openRegion('${escapeHtml(r.name)}')">
+      <span>${escapeHtml(r.name)}</span>
+      <span style="color:var(--text-mute);font-size:13px">${r.cities.length} ›</span>
+    </div>`).join('') || emptyHTML('Ничего не найдено');
+}
+function openRegion(name) {
+  const r = REGIONS.find(x => x.name === name);
+  if (!r) return;
+  cityLevel = 'cities';
+  curRegion = r;
+  $('#cityBack').classList.remove('hidden');
+  $('#cityTitle').textContent = name;
+  $('#citySearch').value = '';
+  renderCities(r, '');
+}
+function renderCities(r, filter) {
+  const f = (filter || '').trim().toLowerCase();
+  const list = r.cities.filter(c => !f || c.toLowerCase().includes(f));
+  $('#cityOptions').innerHTML = (list.length ? list : []).map(c => `
+    <div class="city-opt ${c === state.city ? 'sel' : ''}" onclick="setCity('${escapeHtml(c)}')">
+      <span>${escapeHtml(c)}</span>
+      ${c === state.city ? '<span style="color:var(--blue)">✓</span>' : ''}
+    </div>`).join('') || emptyHTML('Нет городов');
+}
+function cityBack() {
+  if (cityLevel === 'cities') {
+    cityLevel = 'region';
+    curRegion = null;
+    $('#cityBack').classList.add('hidden');
+    $('#cityTitle').textContent = 'Выберите регион';
+    $('#citySearch').value = '';
+    renderRegions('');
+  }
+}
+function cityFilter(v) {
+  if (cityLevel === 'region') renderRegions(v);
+  else if (curRegion) renderCities(curRegion, v);
+}
+async function setCity(c) {
+  state.city = c;
+  localStorage.setItem('m_city', c);
+  closeSheet('citySheet');
+  await loadAds();
+  toast('Город: ' + c);
+}
+
+/* ===== Chats / Notifs (demo UI) ===== */
+function openChats() {
+  $('#chatList').innerHTML = emptyHTML('Функция чатов появится в следующем обновлении');
+  openSheet('chatSheet');
+}
+function openNotifs() {
+  $('#notifList').innerHTML = emptyHTML('Пока нет уведомлений');
+  openSheet('notifSheet');
+}
+
+/* ===== Sheets / Toast ===== */
+function openSheet(id) { document.getElementById(id).classList.add('show'); }
+function closeSheet(id) { document.getElementById(id).classList.remove('show'); }
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ===== Init ===== */
+async function init() {
+  renderCategories('catGrid');
+  renderCategories('catGridSearch');
+  fillCatSelect();
+  try {
+    state.me = await api('/api/auth', { method: 'POST', body: {} });
+    if (state.me.debug) console.warn('DEBUG mode: BOT_TOKEN not set on server.');
+  } catch (e) { toast('Ошибка авторизации'); }
+  if (!state.city) {
+    openCity();
+    $('#adListHome').innerHTML = loadingHTML();
+  } else {
+    $('#adListHome').innerHTML = loadingHTML();
+    await loadAds();
+    const deepAd = new URLSearchParams(location.search).get('ad');
+    if (deepAd) openAd(Number(deepAd));
+  }
+  renderProfile();
+}
+init();
+</script>
+</body>
+</html>
